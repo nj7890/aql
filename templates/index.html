@@ -1,29 +1,202 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <title>Put Data - openEHR Web</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <meta charset="utf-8">
+  <title>openEHR Web App</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body class="p-4">
-    <h2>Submit Composition</h2>
-    <form method="post" action="/load_fields">
-        <label>Select Template:</label>
-        <select name="template" class="form-select" onchange="this.form.submit()">
-            <option value="">-- Select --</option>
-            {% for t in templates %}
-                <option value="{{ t }}" {% if selected_template == t %}selected{% endif %}>{{ t }}</option>
-            {% endfor %}
-        </select>
-    </form>
-    {% if fields %}
-    <form method="post" action="/submit" class="mt-3">
-        <input type="hidden" name="template" value="{{ selected_template }}">
-        {% for field in fields %}
-            <label>{{ field }}</label>
-            <input type="text" name="{{ field }}" class="form-control" required>
-        {% endfor %}
-        <button type="submit" class="btn btn-success mt-3">Submit</button>
-    </form>
-    {% endif %}
+<body class="bg-light">
+
+  <div class="container py-4">
+    <h2 class="mb-4">openEHR Web Portal</h2>
+
+    <!-- Main Tabs -->
+    <ul class="nav nav-tabs mb-3" id="mainTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#put" type="button">Put Data</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#query" type="button">Query Data</button>
+      </li>
+    </ul>
+
+    <div class="tab-content">
+
+      <!-- ===== Put Data ===== -->
+      <div class="tab-pane fade show active" id="put">
+
+        <!-- Sub-Pills for Put Data -->
+        <ul class="nav nav-pills mb-3" id="putDataTabs" role="tablist">
+          <li class="nav-item">
+            <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#upload">Upload Template</button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#patient">Add Patient</button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#clinical">Add Clinical Data</button>
+          </li>
+        </ul>
+
+        <div class="tab-content">
+
+          <!-- --- Upload Template --- -->
+          <div class="tab-pane fade show active" id="upload">
+            <form id="templateForm" enctype="multipart/form-data">
+              <div class="mb-3">
+                <label class="form-label"><strong>Upload Template (JSON)</strong></label>
+                <input type="file" name="template" accept=".json" class="form-control" required>
+              </div>
+              <button class="btn btn-primary">Upload</button>
+            </form>
+          </div>
+
+          <!-- --- Add Patient --- -->
+          <div class="tab-pane fade" id="patient">
+            <form id="patientForm">
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <label class="form-label">Name</label>
+                  <input type="text" name="name" class="form-control" required>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label">Age</label>
+                  <input type="number" name="age" class="form-control">
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label">Gender</label>
+                  <select name="gender" class="form-select">
+                    <option value="">— select —</option>
+                    <option>Male</option>
+                    <option>Female</option>
+                    <option>Other</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Location</label>
+                  <input type="text" name="location" class="form-control">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Government ID</label>
+                  <input type="text" name="gov_id" class="form-control" required>
+                </div>
+                <div class="col-md-2 align-self-end">
+                  <button class="btn btn-success">Add Patient</button>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <!-- --- Add Clinical Data --- -->
+          <div class="tab-pane fade" id="clinical">
+            <div class="row g-3 mb-3">
+              <div class="col-md-4">
+                <label class="form-label">Patient</label>
+                <select id="clinicalEhr" class="form-select"></select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Template</label>
+                <select id="clinicalTpl" class="form-select"></select>
+              </div>
+              <div class="col-md-4 d-flex align-items-end">
+                <button id="loadClinical" class="btn btn-outline-primary">Load</button>
+              </div>
+            </div>
+
+            <form id="compositionForm">
+              <div class="mb-3">
+                <label class="form-label">Composition JSON</label>
+                <textarea id="compositionJson" rows="6" class="form-control"></textarea>
+              </div>
+              <button class="btn btn-dark">Submit Composition</button>
+            </form>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ===== Query Data ===== -->
+      <div class="tab-pane fade" id="query">
+        <!-- (Existing Query UI here) -->
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    async function getJSON(url){ return (await fetch(url)).json(); }
+
+    // ---- Upload Template ----
+    document.getElementById("templateForm").onsubmit = async e => {
+      e.preventDefault();
+      const res = await fetch("/upload_template", {
+        method: "POST",
+        body: new FormData(e.target)
+      });
+      alert((await res.json()).status);
+    };
+
+    // ---- Add Patient ----
+    document.getElementById("patientForm").onsubmit = async e => {
+      e.preventDefault();
+      const form = new FormData(e.target);
+      const res = await fetch("/add_patient", {
+        method: "POST",
+        body: form
+      });
+      const j = await res.json();
+      alert(j.status === "success"
+            ? "Patient added."
+            : j.message);
+      if (res.ok) loadClinicalDropdowns();
+    };
+
+    // Populate dropdowns for Clinical Data tab
+    async function loadClinicalDropdowns(){
+      const [pats, temps] = await Promise.all([
+        getJSON("/patients"),
+        getJSON("/templates")
+      ]);
+      const pe = document.getElementById("clinicalEhr"),
+            pt = document.getElementById("clinicalTpl");
+      pe.innerHTML = temps.innerHTML = "";
+      pats.forEach(p=> pe.append(new Option(`${p.name} (${p.gov_id})`, p._id)));
+      temps.forEach(t=> pt.append(new Option(t.name, t._id)));
+    }
+    loadClinicalDropdowns();
+
+    // ---- Load Clinical Skeleton ----
+    document.getElementById("loadClinical").onclick = e => {
+      e.preventDefault();
+      const ehrId = document.getElementById("clinicalEhr").value;
+      const tplId = document.getElementById("clinicalTpl").value;
+      if (!ehrId || !tplId) {
+        return alert("Select both patient and template first");
+      }
+      const skeleton = {
+        ehr_id: ehrId,
+        template_id: tplId,
+        data: {}
+      };
+      document.getElementById("compositionJson").value = 
+        JSON.stringify(skeleton, null, 2);
+    };
+
+    // ---- Submit Composition ----
+    document.getElementById("compositionForm").onsubmit = async e => {
+      e.preventDefault();
+      const data = JSON.parse(
+        document.getElementById("compositionJson").value
+      );
+      const res = await fetch("/put_data", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify(data)
+      });
+      alert((await res.json()).status);
+    };
+  </script>
 </body>
+</html>
+
 </html>

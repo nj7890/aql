@@ -1,0 +1,633 @@
+{
+  "templateId" : "assessment.v0",
+  "semVer" : "0.1.0",
+  "version" : "2.3",
+  "defaultLanguage" : "en",
+  "languages" : [ "en" ],
+  "tree" : {
+    "id" : "assessment.v0",
+    "name" : "assessment.v0",
+    "localizedName" : "assessment.v0",
+    "rmType" : "COMPOSITION",
+    "nodeId" : "openEHR-EHR-COMPOSITION.encounter.v1",
+    "min" : 1,
+    "max" : 1,
+    "localizedNames" : {
+      "en" : "assessment.v0"
+    },
+    "localizedDescriptions" : {
+      "en" : "Interaction, contact or care event between a subject of care and healthcare provider(s)."
+    },
+    "aqlPath" : "",
+    "children" : [ {
+      "id" : "context",
+      "rmType" : "EVENT_CONTEXT",
+      "nodeId" : "",
+      "min" : 1,
+      "max" : 1,
+      "aqlPath" : "/context",
+      "children" : [ {
+        "id" : "start_time",
+        "name" : "Start_time",
+        "rmType" : "DV_DATE_TIME",
+        "min" : 1,
+        "max" : 1,
+        "aqlPath" : "/context/start_time",
+        "inputs" : [ {
+          "type" : "DATETIME"
+        } ],
+        "inContext" : true
+      }, {
+        "id" : "setting",
+        "name" : "Setting",
+        "rmType" : "DV_CODED_TEXT",
+        "min" : 1,
+        "max" : 1,
+        "aqlPath" : "/context/setting",
+        "inputs" : [ {
+          "suffix" : "code",
+          "type" : "TEXT"
+        }, {
+          "suffix" : "value",
+          "type" : "TEXT"
+        } ],
+        "inContext" : true
+      } ]
+    }, {
+      "id" : "covid-19_infection_risk_assessment",
+      "name" : "Covid-19 infection risk assessment",
+      "localizedName" : "Covid-19 infection risk assessment",
+      "rmType" : "EVALUATION",
+      "nodeId" : "openEHR-EHR-EVALUATION.health_risk-covid.v0",
+      "min" : 0,
+      "max" : 1,
+      "localizedNames" : {
+        "en" : "Covid-19 infection risk assessment"
+      },
+      "localizedDescriptions" : {
+        "en" : "Assessment of the potential and likelihood of Covid-19 infection as determined by identified risk factors."
+      },
+      "aqlPath" : "/content[openEHR-EHR-EVALUATION.health_risk-covid.v0]",
+      "children" : [ {
+        "id" : "health_risk",
+        "name" : "Health risk",
+        "localizedName" : "Health risk",
+        "rmType" : "DV_CODED_TEXT",
+        "nodeId" : "at0002.1",
+        "min" : 1,
+        "max" : 1,
+        "localizedNames" : {
+          "en" : "Health risk"
+        },
+        "localizedDescriptions" : {
+          "en" : "Identification of the potential future disease, condition or health issue for which the risk is being assessed, by name."
+        },
+        "annotations" : {
+          "comment" : "Coding of 'Health risk' with a terminology is preferred, where possible. Free text should be used only if there is no appropriate terminology available. For example: risk of cardiovascular disease, with risk factors of hypertension and hypercholesterolaemia."
+        },
+        "aqlPath" : "/content[openEHR-EHR-EVALUATION.health_risk-covid.v0]/data[at0001]/items[at0002.1]/value",
+        "inputs" : [ {
+          "suffix" : "code",
+          "type" : "CODED_TEXT",
+          "list" : [ {
+            "value" : "at0.1",
+            "label" : "COVID-19 Risk assessment",
+            "localizedLabels" : {
+              "en" : "COVID-19 Risk assessment"
+            },
+            "localizedDescriptions" : {
+              "en" : "Assessment of risk of COVID-19 infection."
+            }
+          } ]
+        } ]
+      }, {
+        "id" : "risk_factors",
+        "name" : "Risk factors",
+        "localizedName" : "Risk factors",
+        "rmType" : "CLUSTER",
+        "nodeId" : "at0016",
+        "min" : 0,
+        "max" : -1,
+        "localizedNames" : {
+          "en" : "Risk factors"
+        },
+        "localizedDescriptions" : {
+          "en" : "Details about each possible risk factor."
+        },
+        "aqlPath" : "/content[openEHR-EHR-EVALUATION.health_risk-covid.v0]/data[at0001]/items[at0016]",
+        "children" : [ {
+          "id" : "risk_factor",
+          "name" : "Risk factor",
+          "localizedName" : "Risk factor",
+          "rmType" : "DV_CODED_TEXT",
+          "nodeId" : "at0013.1",
+          "min" : 1,
+          "max" : 1,
+          "localizedNames" : {
+            "en" : "Risk factor"
+          },
+          "localizedDescriptions" : {
+            "en" : "Identification of the risk factor, by name."
+          },
+          "annotations" : {
+            "comment" : "For example: hypertension and hypercholesterolaemia, which may be used as part of the overall assessment for cardiovascular disease; or a genetic marker. Coding of \r\n'Risk factor' with a terminology, where possible."
+          },
+          "aqlPath" : "/content[openEHR-EHR-EVALUATION.health_risk-covid.v0]/data[at0001]/items[at0016]/items[at0013.1]/value",
+          "inputs" : [ {
+            "suffix" : "code",
+            "type" : "CODED_TEXT",
+            "list" : [ {
+              "value" : "at0.9",
+              "label" : "Contact with confirmed Covid-19 case",
+              "localizedLabels" : {
+                "en" : "Contact with confirmed Covid-19 case"
+              },
+              "localizedDescriptions" : {
+                "en" : "Contact with confirmed Covid-19 case within 14 days before symptom onset."
+              }
+            }, {
+              "value" : "at0.14",
+              "label" : "Potential contact exposure based on location",
+              "localizedLabels" : {
+                "en" : "Potential contact exposure based on location"
+              },
+              "localizedDescriptions" : {
+                "en" : "Potential contact exposure based on location."
+              }
+            }, {
+              "value" : "at0.10",
+              "label" : "Contact with suspected case/ pneumonia case",
+              "localizedLabels" : {
+                "en" : "Contact with suspected case/ pneumonia case"
+              },
+              "localizedDescriptions" : {
+                "en" : "Contact with suspected case/ pneumonia case within 14 days before symptom onset."
+              }
+            }, {
+              "value" : "at0.13",
+              "label" : "Contact with severe, unexplained respiratory disease",
+              "localizedLabels" : {
+                "en" : "Contact with severe, unexplained respiratory disease"
+              },
+              "localizedDescriptions" : {
+                "en" : "Contact with severe, unexplained respiratory disease in 10 days before symptom onset."
+              }
+            }, {
+              "value" : "at0.11",
+              "label" : "Contact with birds in China",
+              "localizedLabels" : {
+                "en" : "Contact with birds in China"
+              },
+              "localizedDescriptions" : {
+                "en" : "Contact with birds in China in 10 days before symptom onset."
+              }
+            }, {
+              "value" : "at0.12",
+              "label" : "Contact with confirmed human case of Avian flu in China",
+              "localizedLabels" : {
+                "en" : "Contact with confirmed human case of Avian flu in China"
+              },
+              "localizedDescriptions" : {
+                "en" : "Contact with confirmed human case of Avian flu in China in 10 days before symptom onset."
+              }
+            }, {
+              "value" : "at0.18",
+              "label" : "Needs admission for respiratory disease",
+              "localizedLabels" : {
+                "en" : "Needs admission for respiratory disease"
+              },
+              "localizedDescriptions" : {
+                "en" : "Does the patient require hospital admission with either clinical or radiological evidence of pneumonia, adult respiratory distress syndrome, or influenza like illness?"
+              }
+            }, {
+              "value" : "at0.19",
+              "label" : "Other household members are ill",
+              "localizedLabels" : {
+                "en" : "Other household members are ill"
+              },
+              "localizedDescriptions" : {
+                "en" : "The patient is in a house with other household members who are ill"
+              }
+            }, {
+              "value" : "at0.20",
+              "label" : "Household members with travel exposure",
+              "localizedLabels" : {
+                "en" : "Household members with travel exposure"
+              },
+              "localizedDescriptions" : {
+                "en" : "Members of the patient's household have travel exposure."
+              }
+            } ]
+          } ]
+        }, {
+          "id" : "presence",
+          "name" : "Presence",
+          "localizedName" : "Presence",
+          "rmType" : "DV_CODED_TEXT",
+          "nodeId" : "at0017.1",
+          "min" : 0,
+          "max" : 1,
+          "localizedNames" : {
+            "en" : "Presence"
+          },
+          "localizedDescriptions" : {
+            "en" : "Presence of the risk factor."
+          },
+          "aqlPath" : "/content[openEHR-EHR-EVALUATION.health_risk-covid.v0]/data[at0001]/items[at0016]/items[at0017.1]/value",
+          "inputs" : [ {
+            "suffix" : "code",
+            "type" : "CODED_TEXT",
+            "list" : [ {
+              "value" : "at0018",
+              "label" : "Present",
+              "localizedLabels" : {
+                "en" : "Present"
+              },
+              "localizedDescriptions" : {
+                "en" : "The risk factor has been identified for this individual."
+              }
+            }, {
+              "value" : "at0019",
+              "label" : "Absent",
+              "localizedLabels" : {
+                "en" : "Absent"
+              },
+              "localizedDescriptions" : {
+                "en" : "The risk factor has not been identified for this individual."
+              }
+            }, {
+              "value" : "at0.15",
+              "label" : "Unknown",
+              "localizedLabels" : {
+                "en" : "Unknown"
+              },
+              "localizedDescriptions" : {
+                "en" : "No information is available for this risk factor."
+              }
+            } ]
+          } ]
+        }, {
+          "id" : "description",
+          "name" : "Description",
+          "localizedName" : "Description",
+          "rmType" : "DV_TEXT",
+          "nodeId" : "at0014",
+          "min" : 0,
+          "max" : 1,
+          "localizedNames" : {
+            "en" : "Description"
+          },
+          "localizedDescriptions" : {
+            "en" : "Narrative description about the risk factor."
+          },
+          "aqlPath" : "/content[openEHR-EHR-EVALUATION.health_risk-covid.v0]/data[at0001]/items[at0016]/items[at0014]/value",
+          "inputs" : [ {
+            "type" : "TEXT"
+          } ]
+        }, {
+          "id" : "date_identified",
+          "name" : "Date identified",
+          "localizedName" : "Date identified",
+          "rmType" : "DV_DATE_TIME",
+          "nodeId" : "at0029",
+          "min" : 0,
+          "max" : 1,
+          "localizedNames" : {
+            "en" : "Date identified"
+          },
+          "localizedDescriptions" : {
+            "en" : "The date/time that the risk factor was identified."
+          },
+          "aqlPath" : "/content[openEHR-EHR-EVALUATION.health_risk-covid.v0]/data[at0001]/items[at0016]/items[at0029]/value",
+          "inputs" : [ {
+            "type" : "DATETIME"
+          } ]
+        }, {
+          "id" : "mitigated",
+          "name" : "Mitigated",
+          "localizedName" : "Mitigated",
+          "rmType" : "DV_BOOLEAN",
+          "nodeId" : "at0028",
+          "min" : 0,
+          "max" : 1,
+          "localizedNames" : {
+            "en" : "Mitigated"
+          },
+          "localizedDescriptions" : {
+            "en" : "The risk factor has been identified as present, but then subsequently been mitigated by treatment or investigation."
+          },
+          "annotations" : {
+            "comment" : "Record as True if the risk factor has been treated or investigated and risk from this risk factor is considered to be lessened. For example: an infant given gentamicin in neonatal intensive care is regarded as having a risk of permanent hearing loss. If diagnostic testing shows no evidence of hearing loss in the first year of life, the risk of later hearing loss is considered to be much reduced, but still possible. This data element allows clinicians to say that the risk has been mitigated but should still be considered as a possibility in future. In practice, the risk factor could be maintained in the risk assessment in case it might impact the individual's health at a future time, but flagging that its contribution to risk calculation may not be as great as if it had not been previously treated or investigated. "
+          },
+          "aqlPath" : "/content[openEHR-EHR-EVALUATION.health_risk-covid.v0]/data[at0001]/items[at0016]/items[at0028]/value",
+          "inputs" : [ {
+            "type" : "BOOLEAN",
+            "list" : [ {
+              "value" : "true",
+              "label" : "true"
+            } ]
+          } ]
+        } ]
+      }, {
+        "id" : "risk_assessment",
+        "name" : "Risk assessment",
+        "localizedName" : "Risk assessment",
+        "rmType" : "DV_CODED_TEXT",
+        "nodeId" : "at0003.1",
+        "min" : 0,
+        "max" : 1,
+        "localizedNames" : {
+          "en" : "Risk assessment"
+        },
+        "localizedDescriptions" : {
+          "en" : "Evaluation of the health risk."
+        },
+        "annotations" : {
+          "comment" : "There may be multiple variations on the assessment of risk. The Choice data type allows for recording of the assessment as either free text or value sets (such as low, medium or hig). The proportion data type allows recording of a percentage, a ratio or a fraction. The quantity data type allows recording of a decimal number."
+        },
+        "aqlPath" : "/content[openEHR-EHR-EVALUATION.health_risk-covid.v0]/data[at0001]/items[at0003.1]/value",
+        "inputs" : [ {
+          "suffix" : "code",
+          "type" : "CODED_TEXT",
+          "list" : [ {
+            "value" : "at0.16",
+            "label" : "Low risk",
+            "localizedLabels" : {
+              "en" : "Low risk"
+            },
+            "localizedDescriptions" : {
+              "en" : "The risk of the a patient having a Covid-19 infection is assessed to be low."
+            }
+          }, {
+            "value" : "at0.17",
+            "label" : "High risk",
+            "localizedLabels" : {
+              "en" : "High risk"
+            },
+            "localizedDescriptions" : {
+              "en" : "The risk of the a patient having a Covid-19 infection is assessed to be high."
+            }
+          } ]
+        } ]
+      }, {
+        "id" : "assessment_type",
+        "name" : "Assessment type",
+        "localizedName" : "Assessment type",
+        "rmType" : "DV_CODED_TEXT",
+        "nodeId" : "at0020",
+        "min" : 0,
+        "max" : 1,
+        "localizedNames" : {
+          "en" : "Assessment type"
+        },
+        "localizedDescriptions" : {
+          "en" : "Record of whether the risk assessment is a relative or absolute."
+        },
+        "aqlPath" : "/content[openEHR-EHR-EVALUATION.health_risk-covid.v0]/data[at0001]/items[at0020]/value",
+        "inputs" : [ {
+          "suffix" : "code",
+          "type" : "CODED_TEXT",
+          "list" : [ {
+            "value" : "at0021",
+            "label" : "Relative risk",
+            "localizedLabels" : {
+              "en" : "Relative risk"
+            },
+            "localizedDescriptions" : {
+              "en" : "Ratio of probability of a health event or condition occurring compared to a population with similar characteristics eg same age and sex."
+            }
+          }, {
+            "value" : "at0022",
+            "label" : "Absolute risk",
+            "localizedLabels" : {
+              "en" : "Absolute risk"
+            },
+            "localizedDescriptions" : {
+              "en" : "Ratio of probability of a health event or condition occurring compared to the population as a whole."
+            }
+          } ]
+        } ]
+      }, {
+        "id" : "time_period",
+        "name" : "Time period",
+        "localizedName" : "Time period",
+        "rmType" : "DV_DURATION",
+        "nodeId" : "at0023",
+        "min" : 0,
+        "max" : 1,
+        "localizedNames" : {
+          "en" : "Time period"
+        },
+        "localizedDescriptions" : {
+          "en" : "The time period during which the predicted health risk is relevant."
+        },
+        "annotations" : {
+          "comment" : "That is: the risk of experiencing the identified 'Health risk' in the next <X> years."
+        },
+        "aqlPath" : "/content[openEHR-EHR-EVALUATION.health_risk-covid.v0]/data[at0001]/items[at0023]/value",
+        "inputs" : [ {
+          "suffix" : "year",
+          "type" : "INTEGER",
+          "validation" : {
+            "range" : {
+              "minOp" : ">=",
+              "min" : 0
+            }
+          }
+        }, {
+          "suffix" : "month",
+          "type" : "INTEGER",
+          "validation" : {
+            "range" : {
+              "minOp" : ">=",
+              "min" : 0
+            }
+          }
+        }, {
+          "suffix" : "day",
+          "type" : "INTEGER",
+          "validation" : {
+            "range" : {
+              "minOp" : ">=",
+              "min" : 0
+            }
+          }
+        }, {
+          "suffix" : "week",
+          "type" : "INTEGER",
+          "validation" : {
+            "range" : {
+              "minOp" : ">=",
+              "min" : 0
+            }
+          }
+        }, {
+          "suffix" : "hour",
+          "type" : "INTEGER",
+          "validation" : {
+            "range" : {
+              "minOp" : ">=",
+              "min" : 0
+            }
+          }
+        }, {
+          "suffix" : "minute",
+          "type" : "INTEGER",
+          "validation" : {
+            "range" : {
+              "minOp" : ">=",
+              "min" : 0
+            }
+          }
+        }, {
+          "suffix" : "second",
+          "type" : "INTEGER",
+          "validation" : {
+            "range" : {
+              "minOp" : ">=",
+              "min" : 0
+            }
+          }
+        } ]
+      }, {
+        "id" : "last_updated",
+        "name" : "Last updated",
+        "localizedName" : "Last updated",
+        "rmType" : "DV_DATE_TIME",
+        "nodeId" : "at0024",
+        "min" : 0,
+        "max" : 1,
+        "dependsOn" : [ "health_risk", "risk_factors", "risk_assessment", "assessment_type", "time_period" ],
+        "localizedNames" : {
+          "en" : "Last updated"
+        },
+        "localizedDescriptions" : {
+          "en" : "The date this health risk assessment was last updated."
+        },
+        "annotations" : {
+          "comment" : "This data element may be thought redundant if the data is recorded and stored using COMPOSITIONs within a closed clinical system. However if this information is extracted from its original COMPOSITION context, for example, to be included in another document or message then the temporal context is effectively removed. This 'Last updated' data element has been explicitly added to allow the critical temporal data to be kept alongside the clinical data in all circumstances. It is assumed that the clinical system can copy the date from the COMPOSITION to reduce the need for duplication of data entry by the clinician."
+        },
+        "aqlPath" : "/content[openEHR-EHR-EVALUATION.health_risk-covid.v0]/protocol[at0010]/items[at0024]/value",
+        "inputs" : [ {
+          "type" : "DATETIME"
+        } ]
+      }, {
+        "id" : "assessment_method",
+        "name" : "Assessment method",
+        "localizedName" : "Assessment method",
+        "rmType" : "DV_TEXT",
+        "nodeId" : "at0025",
+        "min" : 0,
+        "max" : 1,
+        "dependsOn" : [ "health_risk", "risk_factors", "risk_assessment", "assessment_type", "time_period" ],
+        "localizedNames" : {
+          "en" : "Assessment method"
+        },
+        "localizedDescriptions" : {
+          "en" : "Identification of the algorithm or guideline used to make the assessment of risk."
+        },
+        "annotations" : {
+          "comment" : "For example: Framingham cardiovascular risk calculator."
+        },
+        "aqlPath" : "/content[openEHR-EHR-EVALUATION.health_risk-covid.v0]/protocol[at0010]/items[at0025]/value",
+        "inputs" : [ {
+          "type" : "TEXT"
+        } ]
+      }, {
+        "id" : "language",
+        "name" : "Language",
+        "rmType" : "CODE_PHRASE",
+        "min" : 1,
+        "max" : 1,
+        "aqlPath" : "/content[openEHR-EHR-EVALUATION.health_risk-covid.v0]/language",
+        "inContext" : true
+      }, {
+        "id" : "encoding",
+        "name" : "Encoding",
+        "rmType" : "CODE_PHRASE",
+        "min" : 1,
+        "max" : 1,
+        "aqlPath" : "/content[openEHR-EHR-EVALUATION.health_risk-covid.v0]/encoding",
+        "inContext" : true
+      }, {
+        "id" : "subject",
+        "name" : "Subject",
+        "rmType" : "PARTY_PROXY",
+        "min" : 1,
+        "max" : 1,
+        "aqlPath" : "/content[openEHR-EHR-EVALUATION.health_risk-covid.v0]/subject",
+        "inputs" : [ {
+          "suffix" : "id",
+          "type" : "TEXT"
+        }, {
+          "suffix" : "id_scheme",
+          "type" : "TEXT"
+        }, {
+          "suffix" : "id_namespace",
+          "type" : "TEXT"
+        }, {
+          "suffix" : "name",
+          "type" : "TEXT"
+        } ],
+        "inContext" : true
+      } ]
+    }, {
+      "id" : "category",
+      "rmType" : "DV_CODED_TEXT",
+      "nodeId" : "",
+      "min" : 1,
+      "max" : 1,
+      "aqlPath" : "/category",
+      "inputs" : [ {
+        "suffix" : "code",
+        "type" : "CODED_TEXT",
+        "list" : [ {
+          "value" : "433",
+          "label" : "event",
+          "localizedLabels" : {
+            "en" : "event"
+          }
+        } ],
+        "terminology" : "openehr"
+      } ],
+      "inContext" : true
+    }, {
+      "id" : "language",
+      "name" : "Language",
+      "rmType" : "CODE_PHRASE",
+      "min" : 1,
+      "max" : 1,
+      "aqlPath" : "/language",
+      "inContext" : true
+    }, {
+      "id" : "territory",
+      "name" : "Territory",
+      "rmType" : "CODE_PHRASE",
+      "min" : 1,
+      "max" : 1,
+      "aqlPath" : "/territory",
+      "inContext" : true
+    }, {
+      "id" : "composer",
+      "name" : "Composer",
+      "rmType" : "PARTY_PROXY",
+      "min" : 1,
+      "max" : 1,
+      "aqlPath" : "/composer",
+      "inputs" : [ {
+        "suffix" : "id",
+        "type" : "TEXT"
+      }, {
+        "suffix" : "id_scheme",
+        "type" : "TEXT"
+      }, {
+        "suffix" : "id_namespace",
+        "type" : "TEXT"
+      }, {
+        "suffix" : "name",
+        "type" : "TEXT"
+      } ],
+      "inContext" : true
+    } ]
+  }
+}

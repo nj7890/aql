@@ -1,64 +1,69 @@
-from flask import Flask, render_template, request, redirect
-import os, json
-from pymongo import MongoClient
-from datetime import datetime
-from bson import ObjectId
+from flask import Flask, render_template, request, jsonify
+from pymongo.errors import DuplicateKeyError
+from database import db, insert_patient, insert_composition, query_compositions
+from bson.objectid import ObjectId
 
 app = Flask(__name__)
 
-client = MongoClient("mongodb://localhost:27017")
-db = client["ehr_web"]
-compositions = db["compositions"]
-
-TEMPLATE_DIR = "openehr_templates/"
-
-def get_all_templates():
-    return [f for f in os.listdir(TEMPLATE_DIR) if f.endswith('.json')]
-
-def get_template_fields(template_name):
-    try:
-        with open(os.path.join(TEMPLATE_DIR, template_name), 'r') as f:
-            data = json.load(f)
-            return list(data.get("fields", {}).keys())
-    except:
-        return []
-
-@app.route('/')
+@app.route("/")
 def index():
-    templates = get_all_templates()
-    return render_template("index.html", templates=templates)
+    return render_template("index.html")
 
-@app.route('/load_fields', methods=['POST'])
-def load_fields():
-    template = request.form['template']
-    fields = get_template_fields(template)
-    return render_template("index.html", templates=get_all_templates(), selected_template=template, fields=fields)
+@app.route("/patients", methods=["GET"])
+def list_patients():
+    pats = [{"_id": str(p["_id"]), 
+             "gov_id": p.get("gov_id"), 
+             "name": p.get("name")}
+            for p in db["patients"].find()]
+    return jsonify(pats)
 
-@app.route('/submit', methods=['POST'])
-def submit():
-    template = request.form['template']
-    field_data = {k: v for k, v in request.form.items() if k != 'template'}
-    composition = {
-        "ehr_id": ObjectId(),
-        "template_id": template,
-        "data": field_data,
-        "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow()
-    }
-    compositions.insert_one(composition)
-    return redirect('/')
+@app.route("/add_patient", methods=["POST"])
+def add_patient():
+    data = request.form.to_dict()
+    # ensure correct typing for age
+    if data.get("age"):
+        data["age"] = int(data["age"])
+    try:
+        insert_patient(data)
+        return jsonify({"status": "success"})
+    except DuplicateKeyError:
+        return jsonify({
+            "status": "error",
+            "message": "A patient with this Government ID already exists."
+        }), 409
 
-@app.route('/query', methods=['GET', 'POST'])
+@app.route("/upload_template", methods=["POST"])
+def upload_template():
+    file = request.files["template"]
+    template_data = file.read().decode("utf-8")
+    db["templates"].insert_one({
+        "name": file.filename,
+        "content": template_data
+    })
+    return jsonify({"status": "uploaded"})
+
+@app.route("/templates", methods=["GET"])
+def list_templates():
+    temps = [{"_id": str(t["_id"]), "name": t.get("name")}
+             for t in db["templates"].find()]
+    return jsonify(temps)
+
+@app.route("/put_data", methods=["POST"])
+def put_data():
+    data = request.json
+    # expect data to include ehr_id, template_id, data
+    insert_composition(data)
+    return jsonify({"status": "inserted"})
+
+@app.route("/query", methods=["POST"])
 def query():
-    results = []
-    error = None
-    if request.method == 'POST':
-        try:
-            query_json = json.loads(request.form['query'])
-            results = list(compositions.find(query_json))
-        except Exception as e:
-            error = str(e)
-    return render_template("query.html", results=results, error=error)
+    filters = request.json
+    result = query_compositions(filters)
+    # stringify ObjectIds
+    for r in result:
+        r["_id"]    = str(r["_id"])
+        r["ehr_id"] = str(r["ehr_id"])
+    return jsonify(result)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(debug=True)
