@@ -1,69 +1,96 @@
 from flask import Flask, render_template, request, jsonify
-from pymongo.errors import DuplicateKeyError
-from database import db, insert_patient, insert_composition, query_compositions
-from bson.objectid import ObjectId
+from pymongo import MongoClient
 
 app = Flask(__name__)
+client = MongoClient("mongodb://localhost:27017")
+db = client["ehr_db"]
+collection = db["ehr"]
 
-@app.route("/")
+@app.route('/')
 def index():
-    return render_template("index.html")
+    return render_template('index.html')
 
-@app.route("/patients", methods=["GET"])
-def list_patients():
-    pats = [{"_id": str(p["_id"]), 
-             "gov_id": p.get("gov_id"), 
-             "name": p.get("name")}
-            for p in db["patients"].find()]
-    return jsonify(pats)
+@app.route('/api/patients', methods=['GET'])
+def get_patients():
+    ehr_ids = collection.distinct("owner_id.id.value")
+    return jsonify(ehr_ids)
 
-@app.route("/add_patient", methods=["POST"])
-def add_patient():
-    data = request.form.to_dict()
-    # ensure correct typing for age
-    if data.get("age"):
-        data["age"] = int(data["age"])
-    try:
-        insert_patient(data)
-        return jsonify({"status": "success"})
-    except DuplicateKeyError:
-        return jsonify({
-            "status": "error",
-            "message": "A patient with this Government ID already exists."
-        }), 409
+@app.route('/api/compositions', methods=['POST'])
+def get_compositions():
+    ehr_ids = request.json.get('ehr_ids', [])
+    pipeline = [
+        {'$match': {'owner_id.id.value': {'$in': ehr_ids}}},
+        {'$unwind': '$versions.data.content'},
+        {'$group': {
+            '_id': '$versions.data.content.archetype_node_id',
+            'name': {'$first': '$versions.data.content.name.value'}
+        }}
+    ]
+    res = list(collection.aggregate(pipeline))
+    return jsonify([{'archetype_id': r['_id'], 'name': r['name']} for r in res])
 
-@app.route("/upload_template", methods=["POST"])
-def upload_template():
-    file = request.files["template"]
-    template_data = file.read().decode("utf-8")
-    db["templates"].insert_one({
-        "name": file.filename,
-        "content": template_data
+def extract_fields(node, out_set):
+    if node.get('type') == 'ELEMENT':
+        out_set.add(node['name']['value'])
+    for child in node.get('items', []):
+        extract_fields(child, out_set)
+
+@app.route('/api/fields', methods=['POST'])
+def get_fields():
+    ehr_id = request.json.get('ehr_id')
+    archetype_id = request.json.get('archetype_id')
+    doc = collection.find_one({
+        'owner_id.id.value': ehr_id,
+        'versions.data.archetype_node_id': archetype_id
     })
-    return jsonify({"status": "uploaded"})
+    if not doc:
+        return jsonify([])
+    fields = set()
+    for entry in doc['versions']['data'].get('content', []):
+        if entry['archetype_node_id'] == archetype_id:
+            for cluster in entry.get('data', {}).get('items', []):
+                extract_fields(cluster, fields)
+    return jsonify(sorted(fields))
 
-@app.route("/templates", methods=["GET"])
-def list_templates():
-    temps = [{"_id": str(t["_id"]), "name": t.get("name")}
-             for t in db["templates"].find()]
-    return jsonify(temps)
+def extract_values(node, out_dict):
+    if node.get('type') == 'ELEMENT':
+        name = node['name']['value']
+        val = node.get('value', {}).get('magnitude') or node.get('value', {}).get('value')
+        out_dict[name] = val
+    for child in node.get('items', []):
+        extract_values(child, out_dict)
 
-@app.route("/put_data", methods=["POST"])
-def put_data():
-    data = request.json
-    # expect data to include ehr_id, template_id, data
-    insert_composition(data)
-    return jsonify({"status": "inserted"})
+@app.route('/api/query', methods=['POST'])
+def run_query():
+    params = request.json
+    ehr_ids = params.get('ehr_ids', [])
+    archetype_id = params.get('archetype_id')
+    filters = params.get('filters', {})
+    limit = params.get('limit', 100)
+    offset = params.get('offset', 0)
+    sort = params.get('sort')
 
-@app.route("/query", methods=["POST"])
-def query():
-    filters = request.json
-    result = query_compositions(filters)
-    # stringify ObjectIds
-    for r in result:
-        r["_id"]    = str(r["_id"])
-        r["ehr_id"] = str(r["ehr_id"])
-    return jsonify(result)
+    cursor = collection.find({
+        'owner_id.id.value': {'$in': ehr_ids},
+        'versions.data.archetype_node_id': archetype_id
+    }).skip(offset).limit(limit)
 
-if __name__ == "__main__":
+    results = []
+    for doc in cursor:
+        entry = next((c for c in doc['versions']['data']['content']
+                      if c['archetype_node_id'] == archetype_id), None)
+        if not entry:
+            continue
+        record = {}
+        for cluster in entry.get('data', {}).get('items', []):
+            extract_values(cluster, record)
+        if all(record.get(k) == v for k, v in filters.items()):
+            results.append(record)
+
+    if sort:
+        results.sort(key=lambda x: x.get(sort['field']), reverse=(sort['order'] == 'desc'))
+
+    return jsonify({'results': results})
+
+if __name__ == '__main__':
     app.run(debug=True)
