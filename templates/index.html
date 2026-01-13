@@ -1,86 +1,81 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>EHR AQL Query Builder</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <meta charset="UTF-8">
+  <title>EHR NLP → AQL Query Interface</title>
+
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  >
 </head>
 
 <body class="bg-light">
-  <div class="container p-4 bg-white rounded shadow-sm mt-4">
-    <h1 class="mb-4">EHR AQL Query Builder</h1>
 
-    <!-- Patient Selection -->
-    <div class="mb-3">
-      <label class="form-label">Select Patient (EHR ID):</label>
-      <select id="patients" class="form-select" multiple></select>
-    </div>
+<div class="container mt-5">
+  <div class="card shadow-sm">
+    <div class="card-body">
 
-    <!-- Composition Selection -->
-    <div class="mb-3">
-      <label class="form-label">Select Composition:</label>
-      <select id="composition" class="form-select"></select>
-    </div>
+      <h2 class="mb-2">EHR Natural Language Query</h2>
+      <p class="text-muted mb-4">
+        Ask questions in plain English.  
+        <br>
+        <strong>Example:</strong>
+        <em>Show age and state where age greater than 50 limit 5</em>
+      </p>
 
-    <!-- Elements -->
-    <div class="mb-3">
-      <button id="add-element" class="btn btn-secondary btn-sm">+ Add Field</button>
-      <div id="elements" class="mt-2"></div>
-    </div>
-
-    <!-- Filters -->
-    <div class="mb-3">
-      <label class="form-label">Filter JSON:</label>
-      <textarea id="filter-json"
-                class="form-control"
-                rows="3"
-                placeholder='Example: {"Systolic blood pressure":120}'></textarea>
-    </div>
-
-    <!-- Query Controls -->
-    <div class="row mb-3">
-      <div class="col">
-        <label class="form-label">Limit:</label>
-        <input id="limit" class="form-control" type="number" value="10">
+      <!-- NLP INPUT -->
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Natural Language Query</label>
+        <textarea
+          id="nlp-input"
+          class="form-control"
+          rows="3"
+          placeholder="Type your clinical query here...">
+        </textarea>
       </div>
-      <div class="col">
-        <label class="form-label">Offset:</label>
-        <input id="offset" class="form-control" type="number" value="0">
+
+      <!-- ACTIONS -->
+      <div class="d-flex gap-2 mb-4">
+        <button id="runNLPQuery" class="btn btn-primary">
+          Run Query
+        </button>
+        <button id="clear" class="btn btn-outline-secondary">
+          Clear
+        </button>
       </div>
-      <div class="col">
-        <label class="form-label">Sort Field:</label>
-        <select id="sortField" class="form-select"></select>
+
+      <!-- AQL OUTPUT -->
+      <h5 class="mt-3">Generated AQL</h5>
+      <pre
+        id="aql-output"
+        class="bg-dark text-success p-3 rounded"
+        style="min-height:120px; white-space:pre-wrap;">
+-- AQL will appear here --
+      </pre>
+
+      <!-- RESULTS -->
+      <h5 class="mt-4">Query Results</h5>
+      <pre
+        id="results-output"
+        class="bg-light border p-3 rounded"
+        style="max-height:300px; overflow:auto;">
+-- Results will appear here --
+      </pre>
+
+      <!-- STATUS -->
+      <div
+        id="status"
+        class="text-muted small mt-2">
       </div>
-      <div class="col">
-        <label class="form-label">Order:</label>
-        <select id="sortOrder" class="form-select">
-          <option value="asc">Asc</option>
-          <option value="desc">Desc</option>
-        </select>
-      </div>
+
     </div>
-
-    <button id="runQuery" class="btn btn-primary">Run Query</button>
-
-    <hr>
-
-    <!-- AQL -->
-    <h3>AQL Query</h3>
-    <pre id="aql-output"
-         class="bg-dark text-success p-3 rounded"
-         style="min-height:150px; white-space:pre-wrap;">
--- AQL query will appear here --
-    </pre>
-
-    <!-- Results -->
-    <h3 class="mt-4">Results</h3>
-    <pre id="results-output"
-         class="bg-light p-3 rounded"
-         style="height:300px; overflow:auto;"></pre>
   </div>
+</div>
 
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script src="/static/script.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/static/script.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
 </body>
 </html>

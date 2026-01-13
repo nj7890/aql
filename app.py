@@ -1,193 +1,190 @@
 from flask import Flask, render_template, request, jsonify
 from pymongo import MongoClient
+import spacy
+import re
 
+# ---------------- NLP ----------------
+nlp = spacy.load("en_core_web_sm")
+
+# ---------------- Flask ----------------
 app = Flask(__name__)
 
-# MongoDB connection
+# ---------------- MongoDB ----------------
 client = MongoClient("mongodb://localhost:27017")
 db = client["ehr_db"]
 collection = db["ehr"]
 
-
-# -------------------- UI --------------------
-@app.route('/')
+# ---------------- UI ----------------
+@app.route("/")
 def index():
-    return render_template('index.html')
+    return render_template("index.html")
 
+# ---------------- Extract ELEMENT names ----------------
+def get_all_elements():
+    elements = set()
 
-# -------------------- API: Patients --------------------
-@app.route('/api/patients', methods=['GET'])
-def get_patients():
-    ehr_ids = collection.distinct("owner_id.id.value")
-    return jsonify(ehr_ids)
+    def walk(node):
+        if isinstance(node, dict):
+            if node.get("type") == "ELEMENT":
+                elements.add(node["name"]["value"])
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, list):
+            for i in node:
+                walk(i)
 
+    for doc in collection.find({}, {"versions.data": 1}):
+        walk(doc)
 
-# -------------------- API: Compositions --------------------
-@app.route('/api/compositions', methods=['POST'])
-def get_compositions():
-    ehr_ids = request.json.get('ehr_ids', [])
+    return list(elements)
 
-    pipeline = [
-        {'$match': {'owner_id.id.value': {'$in': ehr_ids}}},
-        {'$group': {
-            '_id': '$versions.data.archetype_node_id',
-            'name': {'$first': '$versions.data.name.value'}
-        }}
-    ]
+# ---------------- NLP → Structured Query ----------------
+def nlp_to_structured(text):
+    query_doc = nlp(text.lower())
+    field_names = get_all_elements()
 
-    res = list(collection.aggregate(pipeline))
-    return jsonify([
-        {'archetype_id': r['_id'], 'name': r['name']}
-        for r in res
-    ])
+    # Build spaCy docs for fields
+    field_docs = {f: nlp(f.lower()) for f in field_names}
 
+    query_tokens = {t.lemma_ for t in query_doc if t.is_alpha and not t.is_stop}
 
-# -------------------- Helpers --------------------
-def extract_fields(node, out_set):
-    if not isinstance(node, dict):
-        return
+    selected_fields = []
+    conditions = []
+    limit = 100
 
-    if node.get('type') == 'ELEMENT':
-        out_set.add(node['name']['value'])
+    # ---- Field selection (semantic overlap) ----
+    for field, doc in field_docs.items():
+        field_tokens = {t.lemma_ for t in doc if t.is_alpha}
+        if field_tokens & query_tokens:
+            selected_fields.append(field)
 
-    elif 'items' in node:
-        for child in node['items']:
-            extract_fields(child, out_set)
+    # ---- Conditions ----
+    for i, token in enumerate(query_doc):
+        if token.like_num:
+            value = float(token.text)
 
+            # look left for operator
+            window = query_doc[max(0, i - 3):i]
+            op = None
+            for w in window:
+                if w.lemma_ in {"greater", "above", "more"}:
+                    op = ">"
+                elif w.lemma_ in {"less", "below", "under"}:
+                    op = "<"
+                elif w.lemma_ in {"equal", "equals", "is"}:
+                    op = "="
 
-def extract_values(node, out_dict):
-    if not isinstance(node, dict):
-        return
+            if not op:
+                continue
 
-    if node.get('type') == 'ELEMENT':
-        name = node['name']['value']
-        val = (
-            node.get('value', {}).get('magnitude') or
-            node.get('value', {}).get('value')
+            # bind number to nearest noun
+            for noun in reversed(window):
+                if noun.pos_ == "NOUN":
+                    for field, doc in field_docs.items():
+                        if noun.lemma_ in {t.lemma_ for t in doc}:
+                            conditions.append({
+                                "field": field,
+                                "op": op,
+                                "value": value
+                            })
+
+    # ---- Limit ----
+    for i, token in enumerate(query_doc):
+        if token.lemma_ == "limit" and i + 1 < len(query_doc):
+            if query_doc[i + 1].like_num:
+                limit = int(query_doc[i + 1].text)
+
+    return selected_fields, conditions, limit
+
+# ---------------- Clean AQL path generator ----------------
+def aql_path(field, numeric=True):
+    """
+    Generates archetype-style, name-based AQL paths
+    """
+    if numeric:
+        return f"c/data/items[name/value='{field}']/value/magnitude"
+    else:
+        return f"c/data/items[name/value='{field}']/value/value"
+
+# ---------------- AQL Generator ----------------
+def generate_aql(fields, conditions, limit):
+    select_parts = []
+
+    for f in fields:
+        select_parts.append(
+            f"{aql_path(f)} AS \"{f}\""
         )
-        out_dict[name] = val
 
-    elif 'items' in node:
-        for child in node['items']:
-            extract_values(child, out_dict)
-
-
-# -------------------- API: Fields --------------------
-@app.route('/api/fields', methods=['POST'])
-def get_fields():
-    ehr_id = request.json.get('ehr_id')
-    archetype_id = request.json.get('archetype_id')
-
-    doc = collection.find_one({
-        'owner_id.id.value': ehr_id,
-        'versions.data.archetype_node_id': archetype_id
-    })
-
-    if not doc:
-        return jsonify([])
-
-    composition = doc['versions']['data']
-    if composition.get('archetype_node_id') != archetype_id:
-        return jsonify([])
-
-    fields = set()
-    for entry in composition.get('content', []):
-        for cluster in entry.get('data', {}).get('items', []):
-            extract_fields(cluster, fields)
-
-    return jsonify(sorted(fields))
-
-
-# -------------------- AQL Generator --------------------
-def generate_aql(ehr_ids, archetype_id, elements, filters, limit, offset, sort):
-    select_clause = []
-
-    for el in elements:
-        field = el['field']
-        alias = el.get('alias', field)
-        select_clause.append(f"c/{field} AS {alias}")
-
-    select_str = ", ".join(select_clause) if select_clause else "*"
+    select_clause = ",\n  ".join(select_parts) if select_parts else "*"
 
     aql = f"""
-SELECT {select_str}
+SELECT
+  {select_clause}
 FROM EHR e
-CONTAINS COMPOSITION c[{archetype_id}]
-WHERE e/ehr_id/value MATCHES {{{", ".join(ehr_ids)}}}
+CONTAINS COMPOSITION c
 """
 
-    for k, v in filters.items():
-        aql += f" AND c/{k} = '{v}'\n"
+    if conditions:
+        where_parts = []
+        for cnd in conditions:
+            where_parts.append(
+                f"{aql_path(cnd['field'])} {cnd['op']} {cnd['value']}"
+            )
+        aql += "\nWHERE\n  " + " AND\n  ".join(where_parts)
 
-    if sort:
-        aql += f" ORDER BY c/{sort['field']} {sort['order'].upper()}"
-
-    aql += f"\nOFFSET {offset} LIMIT {limit}"
-
+    aql += f"\nLIMIT {limit}"
     return aql.strip()
 
+# ---------------- Mongo value extraction ----------------
+def extract_values(node, record):
+    if isinstance(node, dict):
+        if node.get("type") == "ELEMENT":
+            name = node["name"]["value"]
+            val = (
+                node.get("value", {}).get("magnitude") or
+                node.get("value", {}).get("value")
+            )
+            record[name] = val
+        for v in node.values():
+            extract_values(v, record)
+    elif isinstance(node, list):
+        for i in node:
+            extract_values(i, record)
 
-# -------------------- API: Query --------------------
-@app.route('/api/query', methods=['POST'])
-def run_query():
-    params = request.json
+# ---------------- NLP Query API ----------------
+@app.route("/api/nlp_query", methods=["POST"])
+def run_nlp_query():
+    text = request.json.get("query", "")
 
-    ehr_ids = params.get('ehr_ids', [])
-    archetype_id = params.get('archetype_id')
-    elements = params.get('elements', [])
-    filters = params.get('filters', {})
-    limit = params.get('limit', 100)
-    offset = params.get('offset', 0)
-    sort = params.get('sort')
-
-    # Generate AQL (for frontend display)
-    aql_query = generate_aql(
-        ehr_ids, archetype_id, elements, filters, limit, offset, sort
-    )
-
-    # MongoDB execution
-    cursor = collection.find({
-        'owner_id.id.value': {'$in': ehr_ids},
-        'versions.data.archetype_node_id': archetype_id
-    }).skip(offset).limit(limit)
+    fields, conditions, limit = nlp_to_structured(text)
+    aql = generate_aql(fields, conditions, limit)
 
     results = []
 
-    for doc in cursor:
-        composition = doc['versions']['data']
-        if composition.get('archetype_node_id') != archetype_id:
-            continue
-
+    for doc in collection.find({}):
         record = {}
-        for entry in composition.get('content', []):
-            for cluster in entry.get('data', {}).get('items', []):
-                extract_values(cluster, record)
+        extract_values(doc, record)
 
-        # Field selection
-        if elements:
-            selected = {}
-            for el in elements:
-                field = el['field']
-                alias = el.get('alias') or field
-                selected[alias] = record.get(field)
-            record = selected
+        passed = True
+        for c in conditions:
+            val = record.get(c["field"])
+            if val is None:
+                passed = False
+            elif c["op"] == ">" and not val > c["value"]:
+                passed = False
+            elif c["op"] == "<" and not val < c["value"]:
+                passed = False
+            elif c["op"] == "=" and not str(val) == str(c["value"]):
+                passed = False
 
-        # Filters (simple equality)
-        if all(record.get(k) == v for k, v in filters.items()):
-            results.append(record)
-
-    # Sorting
-    if sort:
-        results.sort(
-            key=lambda x: x.get(sort['field']),
-            reverse=(sort['order'] == 'desc')
-        )
+        if passed:
+            results.append({f: record.get(f) for f in fields})
 
     return jsonify({
-        "aql": aql_query,
+        "aql": aql,
         "results": results
     })
 
-
-if __name__ == '__main__':
+# ---------------- Run ----------------
+if __name__ == "__main__":
     app.run(debug=True)
