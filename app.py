@@ -1,13 +1,10 @@
 from flask import Flask, render_template, request, jsonify
 from pymongo import MongoClient
 import spacy
-import re
 
-# ---------------- NLP ----------------
-nlp = spacy.load("en_core_web_sm")
-
-# ---------------- Flask ----------------
+# ---------------- Init ----------------
 app = Flask(__name__)
+nlp = spacy.load("en_core_web_sm")
 
 # ---------------- MongoDB ----------------
 client = MongoClient("mongodb://localhost:27017")
@@ -19,14 +16,14 @@ collection = db["ehr"]
 def index():
     return render_template("index.html")
 
-# ---------------- Extract ELEMENT names ----------------
-def get_all_elements():
-    elements = set()
+# ---------------- Extract all ELEMENT fields ----------------
+def get_all_element_fields():
+    fields = set()
 
     def walk(node):
         if isinstance(node, dict):
             if node.get("type") == "ELEMENT":
-                elements.add(node["name"]["value"])
+                fields.add(node["name"]["value"])
             for v in node.values():
                 walk(v)
         elif isinstance(node, list):
@@ -36,40 +33,84 @@ def get_all_elements():
     for doc in collection.find({}, {"versions.data": 1}):
         walk(doc)
 
-    return list(elements)
+    return sorted(fields)
 
-# ---------------- NLP → Structured Query ----------------
-def nlp_to_structured(text):
-    query_doc = nlp(text.lower())
-    field_names = get_all_elements()
+# ---------------- Build semantic index ----------------
+def build_field_index(fields):
+    index = {}
+    for field in fields:
+        tokens = {
+            t.lemma_
+            for t in nlp(field.lower())
+            if t.is_alpha
+        }
+        index[field] = tokens
+    return index
 
-    # Build spaCy docs for fields
-    field_docs = {f: nlp(f.lower()) for f in field_names}
+# ---------------- Extract values ----------------
+def extract_values(node, record):
+    if isinstance(node, dict):
+        if node.get("type") == "ELEMENT":
+            name = node["name"]["value"]
+            value = (
+                node.get("value", {}).get("magnitude")
+                or node.get("value", {}).get("value")
+            )
+            record[name] = value
+        for v in node.values():
+            extract_values(v, record)
+    elif isinstance(node, list):
+        for i in node:
+            extract_values(i, record)
 
-    query_tokens = {t.lemma_ for t in query_doc if t.is_alpha and not t.is_stop}
+# ---------------- NLP → Structured (CONSISTENT SELECT + WHERE) ----------------
+def nlp_to_structured(query):
+    query = query.lower()
 
-    selected_fields = []
-    conditions = []
-    limit = 100
+    # ---- split SELECT / WHERE ----
+    if " where " in query:
+        select_text, where_text = query.split(" where ", 1)
+        #print(where_text)
+    else:
+        select_text = query
+        where_text = ""
 
-    # ---- Field selection (semantic overlap) ----
-    for field, doc in field_docs.items():
-        field_tokens = {t.lemma_ for t in doc if t.is_alpha}
-        if field_tokens & query_tokens:
-            selected_fields.append(field)
+    select_doc = nlp(select_text)
+    where_doc = nlp(where_text)
+    
+    select_tokens = {t.lemma_ for t in select_doc if t.is_alpha}
+    where_tokens = {t.lemma_ for t in where_doc if t.is_alpha}
+    print(where_tokens)
+    all_fields = get_all_element_fields()
+    field_index = build_field_index(all_fields)
 
-    # ---- Conditions ----
-    for i, token in enumerate(query_doc):
+    # ---- SELECT fields (already working) ----
+    select_fields = [
+        field
+        for field, tokens in field_index.items()
+        if tokens & select_tokens
+    ]
+
+    # ---- WHERE fields (SAME algorithm) ----
+    where_fields = [
+        field
+        for field, tokens in field_index.items()
+        if tokens & where_tokens
+    ]
+
+    # ---- WHERE conditions (bind operator + value to matched fields) ----
+    filters = {}
+
+    for token in where_doc:
         if token.like_num:
-            value = float(token.text)
+            value = int(token.text)
 
-            # look left for operator
-            window = query_doc[max(0, i - 3):i]
+            # operator detection
             op = None
-            for w in window:
-                if w.lemma_ in {"greater", "above", "more"}:
+            for w in where_doc:
+                if w.lemma_ in {"great", "above", "more"}:
                     op = ">"
-                elif w.lemma_ in {"less", "below", "under"}:
+                elif w.lemma_ in {"less", "below"}:
                     op = "<"
                 elif w.lemma_ in {"equal", "equals", "is"}:
                     op = "="
@@ -77,45 +118,18 @@ def nlp_to_structured(text):
             if not op:
                 continue
 
-            # bind number to nearest noun
-            for noun in reversed(window):
-                if noun.pos_ == "NOUN":
-                    for field, doc in field_docs.items():
-                        if noun.lemma_ in {t.lemma_ for t in doc}:
-                            conditions.append({
-                                "field": field,
-                                "op": op,
-                                "value": value
-                            })
+            # bind to WHERE fields using SAME token matching
+            for field in where_fields:
+                if field_index[field] & where_tokens:
+                    filters[field] = (op, value)
 
-    # ---- Limit ----
-    for i, token in enumerate(query_doc):
-        if token.lemma_ == "limit" and i + 1 < len(query_doc):
-            if query_doc[i + 1].like_num:
-                limit = int(query_doc[i + 1].text)
-
-    return selected_fields, conditions, limit
-
-# ---------------- Clean AQL path generator ----------------
-def aql_path(field, numeric=True):
-    """
-    Generates archetype-style, name-based AQL paths
-    """
-    if numeric:
-        return f"c/data/items[name/value='{field}']/value/magnitude"
-    else:
-        return f"c/data/items[name/value='{field}']/value/value"
+    return select_fields, filters
 
 # ---------------- AQL Generator ----------------
-def generate_aql(fields, conditions, limit):
-    select_parts = []
-
-    for f in fields:
-        select_parts.append(
-            f"{aql_path(f)} AS \"{f}\""
-        )
-
-    select_clause = ",\n  ".join(select_parts) if select_parts else "*"
+def generate_aql(fields, filters, limit=10):
+    select_clause = ",\n  ".join(
+        [f"c/data/items[name/value='{f}']/value AS \"{f}\"" for f in fields]
+    )
 
     aql = f"""
 SELECT
@@ -124,40 +138,24 @@ FROM EHR e
 CONTAINS COMPOSITION c
 """
 
-    if conditions:
-        where_parts = []
-        for cnd in conditions:
-            where_parts.append(
-                f"{aql_path(cnd['field'])} {cnd['op']} {cnd['value']}"
+    if filters:
+        where_clause = []
+        for field, (op, value) in filters.items():
+            where_clause.append(
+                f"c/data/items[name/value='{field}']/value {op} {value}"
             )
-        aql += "\nWHERE\n  " + " AND\n  ".join(where_parts)
+        aql += "\nWHERE\n  " + " AND\n  ".join(where_clause)
 
     aql += f"\nLIMIT {limit}"
     return aql.strip()
 
-# ---------------- Mongo value extraction ----------------
-def extract_values(node, record):
-    if isinstance(node, dict):
-        if node.get("type") == "ELEMENT":
-            name = node["name"]["value"]
-            val = (
-                node.get("value", {}).get("magnitude") or
-                node.get("value", {}).get("value")
-            )
-            record[name] = val
-        for v in node.values():
-            extract_values(v, record)
-    elif isinstance(node, list):
-        for i in node:
-            extract_values(i, record)
-
-# ---------------- NLP Query API ----------------
+# ---------------- API ----------------
 @app.route("/api/nlp_query", methods=["POST"])
 def run_nlp_query():
-    text = request.json.get("query", "")
+    query = request.json.get("query", "")
 
-    fields, conditions, limit = nlp_to_structured(text)
-    aql = generate_aql(fields, conditions, limit)
+    select_fields, filters = nlp_to_structured(query)
+    aql = generate_aql(select_fields, filters)
 
     results = []
 
@@ -166,21 +164,23 @@ def run_nlp_query():
         extract_values(doc, record)
 
         passed = True
-        for c in conditions:
-            val = record.get(c["field"])
-            if val is None:
+        for field, (op, value) in filters.items():
+            if field not in record:
                 passed = False
-            elif c["op"] == ">" and not val > c["value"]:
+                break
+            if op == ">" and not record[field] > str(value):
                 passed = False
-            elif c["op"] == "<" and not val < c["value"]:
+            if op == "<" and not record[field] < str(value):
                 passed = False
-            elif c["op"] == "=" and not str(val) == str(c["value"]):
+            if op == "=" and not record[field] == str(value):
                 passed = False
 
         if passed:
-            results.append({f: record.get(f) for f in fields})
+            results.append({f: record.get(f) for f in select_fields})
 
     return jsonify({
+        "select_fields": select_fields,
+        "filters": filters,
         "aql": aql,
         "results": results
     })

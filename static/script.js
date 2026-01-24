@@ -1,7 +1,6 @@
 $(function () {
 
   $('#runNLPQuery').click(function () {
-
     const query = $('#nlp-input').val().trim();
 
     if (!query) {
@@ -23,7 +22,7 @@ $(function () {
       },
 
       error: function () {
-        $('#aql-output').text('-- Error generating AQL --');
+        $('#aql-output').text('-- Error --');
         $('#results-output').text('-- Query failed --');
       }
     });
