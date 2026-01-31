@@ -1,0 +1,126 @@
+/* Layout */
+body.ehr-ui {
+  background: #f5f6f7;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont;
+  font-size: 14px;
+}
+
+/* Header */
+.ehr-header {
+  background: #ffffff;
+  border-bottom: 1px solid #ddd;
+  padding: 10px 0;
+}
+
+.ehr-title .subtitle {
+  color: #6c757d;
+  font-size: 12px;
+  margin-left: 6px;
+}
+
+/* Main */
+.ehr-main {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.ehr-chat {
+  padding: 15px;
+}
+
+/* Intro */
+.assistant-intro {
+  text-align: center;
+  color: #6c757d;
+  margin-bottom: 20px;
+}
+
+.assistant-intro .example {
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+/* Messages */
+.msg {
+  margin-bottom: 18px;
+}
+
+.user-msg {
+  text-align: right;
+}
+
+.assistant-msg {
+  background: #ffffff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.msg .label {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.msg .content {
+  font-size: 13px;
+}
+
+/* Interpretation */
+.interpretation ul {
+  padding-left: 18px;
+  margin: 6px 0;
+}
+
+/* Answer */
+.answer pre,
+.aql-block pre {
+  background: #f8f9fa;
+  border-radius: 4px;
+  padding: 8px;
+  font-size: 12px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+/* AQL block */
+.aql-block {
+  margin-top: 10px;
+  border-top: 1px dashed #ccc;
+  padding-top: 8px;
+}
+
+/* Thinking */
+.thinking {
+  font-style: italic;
+  opacity: 0.7;
+}
+
+/* Input */
+.ehr-footer {
+  background: #ffffff;
+  border-top: 1px solid #ddd;
+  padding: 10px 0;
+}
+
+.ehr-input-box {
+  display: flex;
+  gap: 8px;
+}
+
+.ehr-input-box input {
+  flex: 1;
+  border-radius: 6px;
+  border: 1px solid #ced4da;
+  padding: 6px 10px;
+}
+
+.ehr-input-box button {
+  border-radius: 6px;
+  padding: 6px 18px;
+  background: #198754;
+  color: white;
+  border: none;
+}

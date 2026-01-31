@@ -1,23 +1,21 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session
 from pymongo import MongoClient
 import spacy
 
 # ---------------- Init ----------------
 app = Flask(__name__)
+app.secret_key = "ehr-asst-secret"
 nlp = spacy.load("en_core_web_sm")
+
+ASSISTANT_NAME = "EHR-Asst"
 
 # ---------------- MongoDB ----------------
 client = MongoClient("mongodb://localhost:27017")
 db = client["ehr_db"]
 collection = db["ehr"]
 
-# ---------------- UI ----------------
-@app.route("/")
-def index():
-    return render_template("index.html")
-
-# ---------------- Extract all ELEMENT fields ----------------
-def get_all_element_fields():
+# ---------------- Schema Extraction ----------------
+def extract_schema():
     fields = set()
 
     def walk(node):
@@ -35,98 +33,115 @@ def get_all_element_fields():
 
     return sorted(fields)
 
-# ---------------- Build semantic index ----------------
-def build_field_index(fields):
-    index = {}
-    for field in fields:
-        tokens = {
-            t.lemma_
-            for t in nlp(field.lower())
-            if t.is_alpha
-        }
-        index[field] = tokens
-    return index
+FIELDS = extract_schema()
 
-# ---------------- Extract values ----------------
+# ---------------- Text Normalization ----------------
+def normalize_text(text):
+    return " ".join(
+        t.lemma_ for t in nlp(text.lower()) if t.is_alpha
+    )
+
+NORMALIZED_FIELDS = {f: normalize_text(f) for f in FIELDS}
+
+# ---------------- UI ----------------
+@app.route("/")
+def index():
+    return render_template("index.html", assistant=ASSISTANT_NAME)
+
+# ---------------- Session Context ----------------
+def get_context():
+    if "ctx" not in session:
+        session["ctx"] = {
+            "select_fields": [],
+            "filters": {},
+            "limit": 10
+        }
+    return session["ctx"]
+
+@app.route("/api/reset_context", methods=["POST"])
+def reset_context():
+    session.pop("ctx", None)
+    return jsonify({"status": "reset"})
+
+# ---------------- Value Extraction ----------------
 def extract_values(node, record):
     if isinstance(node, dict):
         if node.get("type") == "ELEMENT":
             name = node["name"]["value"]
-            value = (
-                node.get("value", {}).get("magnitude")
-                or node.get("value", {}).get("value")
-            )
-            record[name] = value
+            val = node.get("value", {}).get("magnitude") or node.get("value", {}).get("value")
+            try:
+                record[name] = float(val)
+            except (TypeError, ValueError):
+                record[name] = val
         for v in node.values():
             extract_values(v, record)
     elif isinstance(node, list):
         for i in node:
             extract_values(i, record)
 
-# ---------------- NLP → Structured (CONSISTENT SELECT + WHERE) ----------------
-def nlp_to_structured(query):
+# ---------------- NLP → Structured ----------------
+def nlp_to_structured(query, default_limit=10):
     query = query.lower()
 
-    # ---- split SELECT / WHERE ----
     if " where " in query:
         select_text, where_text = query.split(" where ", 1)
-        #print(where_text)
     else:
-        select_text = query
-        where_text = ""
+        select_text, where_text = query, ""
 
-    select_doc = nlp(select_text)
+    doc = nlp(query)
     where_doc = nlp(where_text)
-    
-    select_tokens = {t.lemma_ for t in select_doc if t.is_alpha}
-    where_tokens = {t.lemma_ for t in where_doc if t.is_alpha}
-    print(where_tokens)
-    all_fields = get_all_element_fields()
-    field_index = build_field_index(all_fields)
 
-    # ---- SELECT fields (already working) ----
-    select_fields = [
-        field
-        for field, tokens in field_index.items()
-        if tokens & select_tokens
-    ]
+    # ---- SELECT (phrase-first, longest match) ----
+    normalized_query = normalize_text(select_text)
+    select_fields = []
 
-    # ---- WHERE fields (SAME algorithm) ----
-    where_fields = [
-        field
-        for field, tokens in field_index.items()
-        if tokens & where_tokens
-    ]
+    for field in sorted(FIELDS, key=len, reverse=True):
+        if NORMALIZED_FIELDS[field] in normalized_query:
+            select_fields.append(field)
 
-    # ---- WHERE conditions (bind operator + value to matched fields) ----
+    # ---- WHERE ----
     filters = {}
 
     for token in where_doc:
         if token.like_num:
-            value = int(token.text)
-
-            # operator detection
+            value = float(token.text)
             op = None
-            for w in where_doc:
-                if w.lemma_ in {"great", "above", "more"}:
+
+            for left in token.lefts:
+                if left.lemma_ in {"great", "above", "more"}:
                     op = ">"
-                elif w.lemma_ in {"less", "below"}:
+                elif left.lemma_ in {"less", "below"}:
                     op = "<"
-                elif w.lemma_ in {"equal", "equals", "is"}:
+                elif left.lemma_ in {"equal", "equals", "is"}:
                     op = "="
 
             if not op:
                 continue
 
-            # bind to WHERE fields using SAME token matching
-            for field in where_fields:
-                if field_index[field] & where_tokens:
-                    filters[field] = (op, value)
+            context_tokens = {t.lemma_ for t in token.subtree if t.is_alpha}
 
-    return select_fields, filters
+            for field, norm in NORMALIZED_FIELDS.items():
+                if set(norm.split()) & context_tokens:
+                    filters.setdefault(field, []).append((op, value))
+
+    # ---- LIMIT ----
+    limit = default_limit
+    limit_keywords = {"top", "first", "only", "limit", "latest"}
+
+    for i, token in enumerate(doc):
+        if token.like_num:
+            window = doc[max(i - 3, 0): min(i + 4, len(doc))]
+            if {t.lemma_ for t in window} & limit_keywords:
+                limit = int(token.text)
+                break
+
+    return select_fields, filters, limit
 
 # ---------------- AQL Generator ----------------
-def generate_aql(fields, filters, limit=10):
+def generate_aql(fields, filters, limit):
+    if not fields:
+        fields = [FIELDS[0]]
+
     select_clause = ",\n  ".join(
         [f"c/data/items[name/value='{f}']/value AS \"{f}\"" for f in fields]
     )
@@ -138,24 +153,47 @@ FROM EHR e
 CONTAINS COMPOSITION c
 """
 
-    if filters:
-        where_clause = []
-        for field, (op, value) in filters.items():
-            where_clause.append(
-                f"c/data/items[name/value='{field}']/value {op} {value}"
+    where_parts = []
+    for field, conds in filters.items():
+        for op, val in conds:
+            where_parts.append(
+                f"c/data/items[name/value='{field}']/value {op} {val}"
             )
-        aql += "\nWHERE\n  " + " AND\n  ".join(where_clause)
+
+    if where_parts:
+        aql += "\nWHERE\n  " + " AND\n  ".join(where_parts)
 
     aql += f"\nLIMIT {limit}"
     return aql.strip()
 
-# ---------------- API ----------------
+# ---------------- Chat API ----------------
 @app.route("/api/nlp_query", methods=["POST"])
-def run_nlp_query():
-    query = request.json.get("query", "")
+def run_query():
+    user_query = request.json.get("query", "").strip()
+    ctx = get_context()
 
-    select_fields, filters = nlp_to_structured(query)
-    aql = generate_aql(select_fields, filters)
+    new_fields, new_filters, new_limit = nlp_to_structured(user_query)
+
+    # Merge SELECT
+    for f in new_fields:
+        if f not in ctx["select_fields"]:
+            ctx["select_fields"].append(f)
+
+    # Merge WHERE
+    for field, conds in new_filters.items():
+        ctx["filters"].setdefault(field, []).extend(conds)
+
+    # Update LIMIT only if mentioned
+    if new_limit != 10:
+        ctx["limit"] = new_limit
+
+    session["ctx"] = ctx
+
+    aql = generate_aql(
+        ctx["select_fields"],
+        ctx["filters"],
+        ctx["limit"]
+    )
 
     results = []
 
@@ -164,23 +202,28 @@ def run_nlp_query():
         extract_values(doc, record)
 
         passed = True
-        for field, (op, value) in filters.items():
-            if field not in record:
+        for field, conds in ctx["filters"].items():
+            if field not in record or not isinstance(record[field], (int, float)):
                 passed = False
                 break
-            if op == ">" and not record[field] > str(value):
-                passed = False
-            if op == "<" and not record[field] < str(value):
-                passed = False
-            if op == "=" and not record[field] == str(value):
-                passed = False
+
+            for op, val in conds:
+                if op == ">" and not record[field] > val:
+                    passed = False
+                if op == "<" and not record[field] < val:
+                    passed = False
+                if op == "=" and not record[field] == val:
+                    passed = False
 
         if passed:
-            results.append({f: record.get(f) for f in select_fields})
+            results.append({f: record.get(f) for f in ctx["select_fields"]})
+
+        if len(results) >= ctx["limit"]:
+            break
 
     return jsonify({
-        "select_fields": select_fields,
-        "filters": filters,
+        "assistant": ASSISTANT_NAME,
+        "context": ctx,
         "aql": aql,
         "results": results
     })
