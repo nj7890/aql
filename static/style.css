@@ -74,7 +74,7 @@ body.ehr-ui {
   margin: 6px 0;
 }
 
-/* Answer */
+/* Answer + AQL */
 .answer pre,
 .aql-block pre {
   background: #f8f9fa;
@@ -90,6 +90,18 @@ body.ehr-ui {
   margin-top: 10px;
   border-top: 1px dashed #ccc;
   padding-top: 8px;
+}
+
+/* Metrics */
+.metrics-block {
+  margin-top: 10px;
+  border-top: 1px solid #e0e0e0;
+  padding-top: 8px;
+  font-size: 12px;
+}
+
+.metrics-block ul {
+  padding-left: 18px;
 }
 
 /* Thinking */

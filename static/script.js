@@ -30,7 +30,7 @@ $(function () {
     scrollBottom();
   }
 
-  function assistantResponse(steps, answer, aql) {
+  function assistantResponse(steps, answer, aql, metrics) {
     const stepsHtml = steps.map(s => `<li>${s}</li>`).join('');
 
     $('#chat-window').append(`
@@ -49,8 +49,18 @@ $(function () {
           </div>
 
           <div class="aql-block">
-            <strong>Generated AQL Query:</strong>
+            <strong>Generated AQL:</strong>
             <pre>${aql}</pre>
+          </div>
+
+          <div class="metrics-block">
+            <strong>Evaluation Metrics:</strong>
+            <ul>
+              <li>Field Mapping Accuracy: ${metrics.field_mapping_accuracy}</li>
+              <li>Condition Extraction Accuracy: ${metrics.condition_extraction_accuracy}</li>
+              <li>Query Success: ${metrics.query_success}</li>
+              <li>Latency (ms): ${metrics.latency_ms}</li>
+            </ul>
           </div>
 
         </div>
@@ -97,7 +107,12 @@ $(function () {
             ? "No matching records found."
             : JSON.stringify(res.results, null, 2);
 
-        assistantResponse(steps, answer, res.aql);
+        assistantResponse(
+          steps,
+          answer,
+          res.aql,
+          res.metrics
+        );
       },
 
       error: function () {
@@ -105,7 +120,8 @@ $(function () {
         assistantResponse(
           ["Unable to interpret the query"],
           "No answer available.",
-          "--"
+          "--",
+          {}
         );
       }
     });

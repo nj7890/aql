@@ -10,22 +10,28 @@
     rel="stylesheet"
   >
 
-  <!-- ================= INLINE CSS (script.css) ================= -->
+  <!-- ================= ENHANCED INLINE CSS ================= -->
   <style>
     body.ehr-ui {
-      background: #f5f6f7;
+      background: linear-gradient(180deg, #f6f7f9 0%, #eef1f4 100%);
       height: 100vh;
       display: flex;
       flex-direction: column;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       font-size: 14px;
+      color: #212529;
     }
 
     /* Header */
     .ehr-header {
       background: #ffffff;
-      border-bottom: 1px solid #ddd;
-      padding: 10px 0;
+      border-bottom: 1px solid #e3e6ea;
+      padding: 12px 0;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    }
+
+    .ehr-title strong {
+      font-size: 15px;
     }
 
     .ehr-title .subtitle {
@@ -41,24 +47,33 @@
     }
 
     .ehr-chat {
-      padding: 15px;
+      padding: 20px 16px;
+      max-width: 980px;
+      margin: 0 auto;
     }
 
     /* Intro */
     .assistant-intro {
       text-align: center;
       color: #6c757d;
-      margin-bottom: 20px;
+      margin-bottom: 24px;
+      font-size: 13px;
+    }
+
+    .assistant-intro strong {
+      color: #198754;
+      font-size: 14px;
     }
 
     .assistant-intro .example {
       font-size: 12px;
-      margin-top: 4px;
+      margin-top: 6px;
+      color: #868e96;
     }
 
     /* Messages */
     .msg {
-      margin-bottom: 16px;
+      margin-bottom: 18px;
     }
 
     .user-msg {
@@ -67,237 +82,295 @@
 
     .assistant-msg {
       background: #ffffff;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      padding: 10px;
+      border: 1px solid #e1e4e8;
+      border-radius: 10px;
+      padding: 14px 16px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.04);
     }
 
     .msg .label {
       font-weight: 600;
-      margin-bottom: 4px;
+      margin-bottom: 6px;
+      font-size: 12px;
+    }
+
+    .user-msg .label {
+      color: #0d6efd;
+    }
+
+    .assistant-msg .label {
+      color: #198754;
     }
 
     .msg .content {
       font-size: 13px;
+      line-height: 1.5;
     }
 
     /* Interpretation */
+    .interpretation {
+      margin-bottom: 10px;
+    }
+
     .interpretation ul {
       padding-left: 18px;
       margin: 6px 0;
     }
 
-    .answer pre {
+    .interpretation li {
+      margin-bottom: 4px;
+    }
+
+    /* Answer & AQL */
+    .answer,
+    .aql {
+      margin-top: 10px;
+    }
+
+    .answer pre,
+    .aql pre {
       background: #f8f9fa;
-      border-radius: 4px;
-      padding: 8px;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 10px;
       font-size: 12px;
       max-height: 220px;
       overflow: auto;
     }
 
+    /* Metrics */
+    .metrics {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px dashed #d0d4d9;
+      font-size: 12px;
+      color: #495057;
+    }
+
+    .metrics ul {
+      padding-left: 18px;
+      margin-top: 6px;
+    }
+
     /* Thinking */
     .thinking {
       font-style: italic;
-      opacity: 0.7;
+      opacity: 0.65;
     }
 
-    /* Input */
+    /* Footer */
     .ehr-footer {
       background: #ffffff;
-      border-top: 1px solid #ddd;
-      padding: 10px 0;
+      border-top: 1px solid #e3e6ea;
+      padding: 12px 0;
+      box-shadow: 0 -1px 2px rgba(0,0,0,0.03);
     }
 
     .ehr-input-box {
       display: flex;
-      gap: 8px;
+      gap: 10px;
+      max-width: 980px;
+      margin: 0 auto;
     }
 
     .ehr-input-box input {
       flex: 1;
-      border-radius: 6px;
+      border-radius: 8px;
       border: 1px solid #ced4da;
-      padding: 6px 10px;
+      padding: 8px 12px;
+      font-size: 13px;
+    }
+
+    .ehr-input-box input:focus {
+      outline: none;
+      border-color: #198754;
+      box-shadow: 0 0 0 2px rgba(25,135,84,0.15);
     }
 
     .ehr-input-box button {
-      border-radius: 6px;
-      padding: 6px 18px;
+      border-radius: 8px;
+      padding: 8px 22px;
       background: #198754;
       color: white;
       border: none;
+      font-size: 13px;
+      transition: background 0.2s ease;
+    }
+
+    .ehr-input-box button:hover {
+      background: #157347;
     }
   </style>
 </head>
 
 <body class="ehr-ui">
 
-  <!-- Header -->
-  <header class="ehr-header">
-    <div class="container d-flex justify-content-between align-items-center">
-      <div class="ehr-title">
-        🩺 <strong>EHR-Asst</strong>
-        <span class="subtitle">Explainable EHR Query Assistant</span>
-      </div>
-      <button id="clear" class="btn btn-sm btn-outline-danger">
-        Reset
-      </button>
+<!-- Header -->
+<header class="ehr-header">
+  <div class="container d-flex justify-content-between align-items-center">
+    <div class="ehr-title">
+      🩺 <strong>EHR-Asst</strong>
+      <span class="subtitle">Explainable EHR Query Assistant</span>
     </div>
-  </header>
+    <button id="clear" class="btn btn-sm btn-outline-danger">Reset</button>
+  </div>
+</header>
 
-  <!-- Chat / Reasoning Area -->
-  <main class="ehr-main">
-    <div id="chat-window" class="container ehr-chat">
+<!-- Chat Area -->
+<main class="ehr-main">
+  <div id="chat-window" class="ehr-chat">
 
-      <div class="assistant-intro">
-        <strong>EHR-Asst</strong><br>
-        Ask questions step by step.
-        <div class="example">
-          Example: <em>show patient age → where age &gt; 70 → top 5</em>
+    <div class="assistant-intro">
+      <strong>EHR-Asst</strong><br>
+      Ask questions step by step.
+      <div class="example">
+        Example: <em>show patient age → where age &gt; 70 → top 5</em>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- Input -->
+<footer class="ehr-footer">
+  <div class="ehr-input-box">
+    <input id="nlp-input" type="text" placeholder="Enter your question…" />
+    <button id="runNLPQuery">Send</button>
+  </div>
+</footer>
+
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<!-- ================= INLINE JS (UNCHANGED LOGIC) ================= -->
+<script>
+$(function () {
+
+  $('#runNLPQuery').click(send);
+  $('#nlp-input').keypress(e => { if (e.which === 13) send(); });
+
+  function scrollBottom() {
+    const el = $('#chat-window')[0];
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function userMessage(text) {
+    $('#chat-window').append(`
+      <div class="msg user-msg">
+        <div class="label">You</div>
+        <div class="content">${text}</div>
+      </div>
+    `);
+    scrollBottom();
+  }
+
+  function assistantThinking(id) {
+    $('#chat-window').append(`
+      <div class="msg assistant-msg" id="${id}">
+        <div class="label">EHR-Asst</div>
+        <div class="content thinking">Interpreting query…</div>
+      </div>
+    `);
+    scrollBottom();
+  }
+
+  function assistantResponse(steps, answer, aql, metrics) {
+    const stepsHtml = steps.map(s => `<li>${s}</li>`).join('');
+
+    $('#chat-window').append(`
+      <div class="msg assistant-msg">
+        <div class="label">EHR-Asst</div>
+        <div class="content">
+
+          <div class="interpretation">
+            <strong>My interpretation is:</strong>
+            <ul>${stepsHtml}</ul>
+          </div>
+
+          <div class="answer">
+            <strong>Answer:</strong>
+            <pre>${answer}</pre>
+          </div>
+
+          <div class="aql">
+            <strong>Generated AQL:</strong>
+            <pre>${aql}</pre>
+          </div>
+
+          <div class="metrics">
+            <strong>Evaluation Metrics:</strong>
+            <ul>
+              <li>Field Mapping Accuracy: ${metrics.field_mapping_accuracy}</li>
+              <li>Condition Extraction Accuracy: ${metrics.condition_extraction_accuracy}</li>
+              <li>Query Success: ${metrics.query_success}</li>
+              <li>Latency (ms): ${metrics.latency_ms}</li>
+            </ul>
+          </div>
+
         </div>
       </div>
+    `);
+    scrollBottom();
+  }
 
-    </div>
-  </main>
+  function send() {
+    const query = $('#nlp-input').val().trim();
+    if (!query) return;
 
-  <!-- Input -->
-  <footer class="ehr-footer">
-    <div class="container">
-      <div class="ehr-input-box">
-        <input
-          id="nlp-input"
-          type="text"
-          placeholder="Enter your question…"
-        />
-        <button id="runNLPQuery">Send</button>
-      </div>
-    </div>
-  </footer>
+    userMessage(query);
+    $('#nlp-input').val('');
 
-  <!-- jQuery -->
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    const thinkingId = `thinking-${Date.now()}`;
+    assistantThinking(thinkingId);
 
-  <!-- ================= INLINE JS (script.js) ================= -->
-  <script>
-    $(function () {
+    $.ajax({
+      url: '/api/nlp_query',
+      type: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify({ query }),
 
-      $('#runNLPQuery').click(send);
-      $('#nlp-input').keypress(e => {
-        if (e.which === 13) send();
-      });
+      success: function (res) {
+        $('#' + thinkingId).remove();
 
-      function scrollBottom() {
-        const el = $('#chat-window')[0];
-        el.scrollTop = el.scrollHeight;
+        const steps = [];
+        res.context.select_fields.forEach(f => steps.push(`Fetch "${f}" from EHR`));
+        Object.entries(res.context.filters).forEach(([f, conds]) =>
+          conds.forEach(([op, val]) => steps.push(`Filter "${f}" ${op} ${val}`))
+        );
+        steps.push(`Limit results to ${res.context.limit}`);
+
+        const answer =
+          res.results.length === 0
+            ? "No matching records found."
+            : JSON.stringify(res.results, null, 2);
+
+        assistantResponse(steps, answer, res.aql, res.metrics);
+      },
+
+      error: function () {
+        $('#' + thinkingId).remove();
+        assistantResponse(
+          ["Unable to interpret the question"],
+          "No answer available.",
+          "--",
+          {}
+        );
       }
-
-      function userMessage(text) {
-        $('#chat-window').append(`
-          <div class="msg user-msg">
-            <div class="label">You</div>
-            <div class="content">${text}</div>
-          </div>
-        `);
-        scrollBottom();
-      }
-
-      function assistantThinking(id) {
-        $('#chat-window').append(`
-          <div class="msg assistant-msg" id="${id}">
-            <div class="label">EHR-Asst</div>
-            <div class="content thinking">
-              Interpreting query…
-            </div>
-          </div>
-        `);
-        scrollBottom();
-      }
-
-      function assistantResponse(steps, answer) {
-        const stepsHtml = steps.map(s => `<li>${s}</li>`).join('');
-
-        $('#chat-window').append(`
-          <div class="msg assistant-msg">
-            <div class="label">EHR-Asst</div>
-            <div class="content">
-              <div class="interpretation">
-                <strong>My interpretation is:</strong>
-                <ul>${stepsHtml}</ul>
-              </div>
-              <div class="answer">
-                <strong>Answer:</strong>
-                <pre>${answer}</pre>
-              </div>
-            </div>
-          </div>
-        `);
-        scrollBottom();
-      }
-
-      function send() {
-        const query = $('#nlp-input').val().trim();
-        if (!query) return;
-
-        userMessage(query);
-        $('#nlp-input').val('');
-
-        const thinkingId = `thinking-${Date.now()}`;
-        assistantThinking(thinkingId);
-
-        $.ajax({
-          url: '/api/nlp_query',
-          type: 'POST',
-          contentType: 'application/json',
-          data: JSON.stringify({ query }),
-
-          success: function (res) {
-            $('#' + thinkingId).remove();
-
-            const steps = [];
-
-            res.context.select_fields.forEach(f =>
-              steps.push(`Fetch "${f}" from EHR`)
-            );
-
-            Object.entries(res.context.filters).forEach(([f, conds]) => {
-              conds.forEach(([op, val]) =>
-                steps.push(`Filter "${f}" ${op} ${val}`)
-              );
-            });
-
-            steps.push(`Limit results to ${res.context.limit}`);
-
-            const answer =
-              res.results.length === 0
-                ? "No matching records found."
-                : JSON.stringify(res.results, null, 2);
-
-            assistantResponse(steps, answer);
-          },
-
-          error: function () {
-            $('#' + thinkingId).remove();
-            assistantResponse(
-              ["Unable to interpret the question"],
-              "No answer available."
-            );
-          }
-        });
-      }
-
-      $('#clear').click(function () {
-        $.post('/api/reset_context');
-        $('#chat-window').html(`
-          <div class="assistant-intro">
-            <strong>EHR-Asst</strong><br>
-            Conversation reset. Start a new query.
-          </div>
-        `);
-      });
-
     });
-  </script>
+  }
+
+  $('#clear').click(function () {
+    $.post('/api/reset_context');
+    $('#chat-window').html(`
+      <div class="assistant-intro">
+        <strong>EHR-Asst</strong><br>
+        Conversation reset. Start a new query.
+      </div>
+    `);
+  });
+
+});
+</script>
 
 </body>
 </html>
