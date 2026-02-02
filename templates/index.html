@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>EHR-Asst | Explainable EHR Query Assistant</title>
+  <title>EHR-Assist | Explainable EHR Query Assistant</title>
 
   <!-- Bootstrap -->
   <link
@@ -209,7 +209,7 @@
 <header class="ehr-header">
   <div class="container d-flex justify-content-between align-items-center">
     <div class="ehr-title">
-      🩺 <strong>EHR-Asst</strong>
+      🩺 <strong>EHR-Assist</strong>
       <span class="subtitle">Explainable EHR Query Assistant</span>
     </div>
     <button id="clear" class="btn btn-sm btn-outline-danger">Reset</button>
@@ -221,7 +221,7 @@
   <div id="chat-window" class="ehr-chat">
 
     <div class="assistant-intro">
-      <strong>EHR-Asst</strong><br>
+      <strong>EHR-Assist</strong><br>
       Ask questions step by step.
       <div class="example">
         Example: <em>show patient age → where age &gt; 70 → top 5</em>
@@ -242,7 +242,7 @@
 <!-- jQuery -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
-<!-- ================= INLINE JS (UNCHANGED LOGIC) ================= -->
+<!-- ================= INLINE JS ================= -->
 <script>
 $(function () {
 
@@ -267,7 +267,7 @@ $(function () {
   function assistantThinking(id) {
     $('#chat-window').append(`
       <div class="msg assistant-msg" id="${id}">
-        <div class="label">EHR-Asst</div>
+        <div class="label">EHR-Assist</div>
         <div class="content thinking">Interpreting query…</div>
       </div>
     `);
@@ -279,7 +279,7 @@ $(function () {
 
     $('#chat-window').append(`
       <div class="msg assistant-msg">
-        <div class="label">EHR-Asst</div>
+        <div class="label">EHR-Assist</div>
         <div class="content">
 
           <div class="interpretation">
@@ -363,7 +363,7 @@ $(function () {
     $.post('/api/reset_context');
     $('#chat-window').html(`
       <div class="assistant-intro">
-        <strong>EHR-Asst</strong><br>
+        <strong>EHR-Assist</strong><br>
         Conversation reset. Start a new query.
       </div>
     `);
